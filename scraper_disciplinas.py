@@ -17,15 +17,50 @@ COMO USAR:
 # ============================================================================
 # CONFIGURE AQUI AS SIGLAS DAS DISCIPLINAS QUE VOCÊ QUER BUSCAR
 # ============================================================================
+# SIGLAS_DISCIPLINAS = [
+#     "ACH0021",
+#     "ACH0041",
+#     "ACH0141",
+#     # Adicione mais siglas abaixo (uma por linha):
+#     # "ACH2003",
+#     # "MAC0110",
+# ]
+# ============================================================================
+
 SIGLAS_DISCIPLINAS = [
     "ACH0021",
     "ACH0041",
     "ACH0141",
-    # Adicione mais siglas abaixo (uma por linha):
-    # "ACH2003",
-    # "MAC0110",
+    "ACH2001",
+    "ACH2011",
+    "ACH2014",
+    "ACH2002",
+    "ACH2012",
+    "ACH2023",
+    "ACH2003",
+    "ACH2024",
+    "ACH2053",
+    "ACH2063",
+    "BMP0260",
+    "ACH2004",
+    "ACH2013",
+    "ACH2026",
+    "ACH2033",
+    "ACH2044",
+    "ACH2055",
+    "ACH2005",
+    "ACH2016",
+    "ACH2025",
+    "ACH2034",
+    "ACH2043",
+    "ACH2147",
+    "ACH0042",
+    "ACH0101",
+    "ACH2138",
+    "ACH2177"
 ]
-# ============================================================================
+
+
 
 import sys
 import json
@@ -85,12 +120,39 @@ class DisciplinaScraper:
             info = {
                 'sigla': sigla,
                 'url': url,
+                'nome': '',
+                'nome_en': '',
                 'dados': {}
             }
             
-            # Título da disciplina
+            # Buscar o nome da disciplina no texto
+            # Formato: "Disciplina: ACH2013 - Matemática Discreta I"
+            corpo_texto = soup.get_text()
+            
+            # Procurar pelo padrão "Disciplina: SIGLA - NOME"
+            import re
+            padrao_disciplina = rf'Disciplina:\s*{sigla}\s*-\s*([^\n]+)'
+            match_pt = re.search(padrao_disciplina, corpo_texto)
+            if match_pt:
+                # Extrair nome em português
+                nome_completo = match_pt.group(1).strip()
+                # Remover o nome em inglês se estiver na mesma linha
+                nome_pt = nome_completo.split('\n')[0].strip()
+                info['nome'] = nome_pt
+                
+                # Tentar extrair o nome em inglês (geralmente vem logo após)
+                linhas_depois = corpo_texto[match_pt.end():].split('\n')[:3]
+                for linha in linhas_depois:
+                    linha = linha.strip()
+                    # Nome em inglês geralmente não tem números e está em uma linha separada
+                    if linha and not linha.startswith(('Créditos', 'Carga', 'Tipo', 'Ativação', 'Desativação')):
+                        if not any(char.isdigit() for char in linha[:20]):  # Evitar linhas com números no início
+                            info['nome_en'] = linha
+                            break
+            
+            # Título da disciplina (fallback)
             titulo = soup.find('span', class_='titulo')
-            if titulo:
+            if titulo and not info['nome']:
                 info['titulo'] = titulo.get_text(strip=True)
             
             # Buscar informações em tabelas
@@ -171,7 +233,12 @@ class DisciplinaScraper:
             for disc in dados:
                 f.write(f"## {disc.get('sigla', 'N/A')}\n\n")
                 
-                if 'titulo' in disc:
+                # Nome da disciplina em português e inglês
+                if disc.get('nome'):
+                    f.write(f"**{disc['nome']}**\n\n")
+                    if disc.get('nome_en'):
+                        f.write(f"*{disc['nome_en']}*\n\n")
+                elif 'titulo' in disc:
                     f.write(f"**{disc['titulo']}**\n\n")
                 
                 if disc.get('dados'):
@@ -202,7 +269,13 @@ class DisciplinaScraper:
                 f.write(f"SIGLA: {disc.get('sigla', 'N/A')}\n")
                 f.write("=" * 80 + "\n\n")
                 
-                if 'titulo' in disc:
+                # Nome da disciplina
+                if disc.get('nome'):
+                    f.write(f"NOME: {disc['nome']}\n")
+                    if disc.get('nome_en'):
+                        f.write(f"NAME: {disc['nome_en']}\n")
+                    f.write("\n")
+                elif 'titulo' in disc:
                     f.write(f"{disc['titulo']}\n\n")
                 
                 if disc.get('dados'):
